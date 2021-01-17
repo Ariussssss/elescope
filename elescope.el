@@ -87,12 +87,16 @@ by `run-at-time'."
   "Search for GitHub repositories matching NAME and update the minibuffer with the results."
   (request
     "https://api.github.com/search/repositories"
-    :params (list (cons "q" name))
+    :params
+    (list (cons "q" name) (cons "per_page" 20))
     :parser 'json-read
     :success (cl-function
               (lambda (&key data &allow-other-keys)
                 (let ((results (elescope--parse-gh data)))
-                  (ivy-update-candidates results))))))
+                  (ivy-update-candidates results))))
+    :error
+    (cl-function (lambda (&rest args &key error-thrown &allow-other-keys)
+		   (message "Got error: %S %S" error-thrown args)))))
 
 (defun elescope--search (str)
   "Debounce minibuffer input and pass the resulting STR to the lookup function."
@@ -115,7 +119,8 @@ by `run-at-time'."
 	   (name (if elescope-use-full-path path (cadr (split-string path "/"))))
            (destination (expand-file-name name elescope-root-folder))
            (command (format
-                     "git clone%s %s %s"
+                     "%s git clone%s %s %s"
+		     command-proxy-prefix
 		     (if elescope-clone-depth
 			 (format
 			  " --depth=%s"
